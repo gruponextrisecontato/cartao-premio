@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartão de Prêmio com QR Code</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Biblioteca para gerar QR Code -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card-container { perspective: 1000px; }
+        .card-inner { position: relative; width: 100%; height: 100%; transition: transform 0.8s; transform-style: preserve-3d; }
+        .card-container.is-flipped .card-inner { transform: rotateY(180deg); }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 0.75rem; }
+        .card-back { transform: rotateY(180deg); }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div id="card" class="card-container w-full max-w-sm h-96 cursor-pointer">
+        <div class="card-inner shadow-2xl rounded-xl">
+            
+            <!-- Frente do Cartão -->
+            <div class="card-front bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex flex-col items-center justify-center p-6 text-center">
+                <h2 class="text-2xl font-bold mb-2">Você ganhou um Prêmio!</h2>
+                <p class="text-lg">Clique para revelar seu desconto</p>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mt-4 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+
+            <!-- Verso do Cartão -->
+            <div class="card-back bg-white p-6 flex flex-col justify-center rounded-xl overflow-y-auto">
+                
+                <!-- Seção do Prêmio (inicialmente visível no verso) -->
+                <div id="prize-section">
+                    <div class="text-center">
+                        <h3 class="text-2xl font-bold text-green-600 mb-2">Parabéns!</h3>
+                        <p class="text-gray-700 mb-4">Você ganhou <strong>10% de desconto</strong> nos serviços com o <span class="font-semibold text-blue-600">Grupo NextRise</span>.</p>
+                        <p class="text-gray-600 text-sm bg-gray-100 p-3 rounded-lg">Para validar, siga-nos no Instagram e preencha seus dados para receber o cupom.</p>
+                    </div>
+                    <div class="mt-6">
+                        <a id="follow-button" href="https://www.instagram.com/gruponextrise/" target="_blank" class="block w-full bg-gradient-to-r from-pink-500 to-orange-400 text-white font-bold py-3 px-4 rounded-lg text-center hover:from-pink-600 hover:to-orange-500 transition-all duration-300 shadow-md">
+                            1. Seguir no Instagram
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Seção do Formulário (inicialmente oculta) -->
+                <div id="form-section" class="hidden">
+                    <h4 class="text-xl font-bold text-gray-800 text-center mb-4">2. Preencha seus dados</h4>
+                    <form id="coupon-form">
+                        <div class="mb-3">
+                            <label for="name" class="block text-sm font-medium text-gray-700">Nome</label>
+                            <input type="text" id="name" name="name" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="block text-sm font-medium text-gray-700">Melhor E-mail</label>
+                            <input type="email" id="email" name="email" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div class="mb-4">
+                            <label for="whatsapp" class="block text-sm font-medium text-gray-700">WhatsApp</label>
+                            <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(XX) XXXXX-XXXX" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <button type="submit" id="submit-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md">
+                            Gerar meu Cupom!
+                        </button>
+                    </form>
+                </div>
+                 
+                <!-- Seção de Sucesso com QR Code (inicialmente oculta) -->
+                <div id="success-section" class="hidden text-center">
+                     <h3 class="text-2xl font-bold text-green-600 mb-2">Cupom Gerado!</h3>
+                     <p class="text-gray-700 mb-4">Apresente este QR Code para validar seu desconto. Também o enviamos para o seu e-mail.</p>
+                     <!-- O QR Code será gerado aqui -->
+                     <div id="qrcode-container" class="flex justify-center p-4 bg-white rounded-lg shadow-inner">
+                        <div id="qrcode"></div>
+                     </div>
+                     <p id="coupon-code-display" class="text-sm text-gray-500 mt-2 font-mono"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Seleção de Elementos ---
+        const card = document.getElementById('card');
+        const followButton = document.getElementById('follow-button');
+        const prizeSection = document.getElementById('prize-section');
+        const formSection = document.getElementById('form-section');
+        const couponForm = document.getElementById('coupon-form');
+        const successSection = document.getElementById('success-section');
+        const qrcodeContainer = document.getElementById('qrcode');
+        const couponCodeDisplay = document.getElementById('coupon-code-display');
+        const submitButton = document.getElementById('submit-button');
+
+        // --- Lógica de Interação ---
+
+        // 1. Virar o cartão ao clicar
+        card.addEventListener('click', () => {
+            if (formSection.classList.contains('hidden') && successSection.classList.contains('hidden')) {
+                card.classList.toggle('is-flipped');
+            }
+        });
+
+        // 2. Botão de seguir revela o formulário
+        followButton.addEventListener('click', (event) => {
+            event.stopPropagation(); // Impede que o clique vire o cartão de volta
+            
+            // Esconde a seção do prêmio e mostra a do formulário
+            prizeSection.classList.add('hidden');
+            formSection.classList.remove('hidden');
+        });
+        
+        // 3. Envio do formulário
+        couponForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Previne o recarregamento da página
+            submitButton.disabled = true;
+            submitButton.textContent = 'Gerando...';
+
+            // --- INÍCIO DA LÓGICA DO CUPOM E QR CODE ---
+
+            // URL do seu webhook do Make.com
+            const webhookURL = 'https://hook.us2.make.com/394av4mde6eatpi529qagx8rfs2trpir';
+
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const whatsapp = document.getElementById('whatsapp').value;
+            
+            // Geração do código único baseado na data e hora
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const cupomCode = `NR-${year}${month}${day}-${hours}${minutes}-${name.split(' ')[0].toUpperCase()}`;
+
+            // Dados para o QR Code
+            const qrCodeData = JSON.stringify({
+                cupom: cupomCode,
+                nome: name,
+                email: email,
+                data_geracao: `${day}/${month}/${year} ${hours}:${minutes}`
+            });
+            
+            // Limpa qualquer QR Code anterior e gera um novo
+            qrcodeContainer.innerHTML = '';
+            new QRCode(qrcodeContainer, {
+                text: qrCodeData,
+                width: 180,
+                height: 180,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            
+            // Exibe o código do cupom abaixo do QR Code
+            couponCodeDisplay.textContent = cupomCode;
+            
+            // --- FIM DA LÓGICA DO CUPOM E QR CODE ---
+
+            // Envio dos dados para o Make.com
+            try {
+                const response = await fetch(webhookURL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, whatsapp, cupomCode }) // Enviando o cupomCode também
+                });
+
+                if (response.ok) {
+                    console.log('Dados enviados com sucesso para o Make.com!');
+                    formSection.classList.add('hidden');
+                    successSection.classList.remove('hidden');
+                } else {
+                    throw new Error(`O servidor respondeu com o status: ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Falha ao enviar os dados:', error);
+                alert('Ocorreu um erro ao enviar seus dados. Tente novamente.');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Gerar meu Cupom!';
+            }
+        });
+    </script>
+</body>
+</html>
