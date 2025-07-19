@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Interesse - Grupo NextRise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-lg bg-white p-8 rounded-xl shadow-lg">
+        
+        <!-- Formulário Principal -->
+        <div id="form-container">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Qual serviço mais te interessa?</h1>
+                <p class="text-gray-600 mt-2">Saber seu interesse nos ajuda a oferecer a solução perfeita para você!</p>
+            </div>
+            
+            <form id="interest-form">
+                <!-- O e-mail do usuário será exibido aqui, mas não será editável -->
+                <div class="mb-6 text-center bg-gray-50 p-3 rounded-lg">
+                    <p class="text-sm text-gray-600">Enviando interesse para o e-mail:</p>
+                    <p id="display-email" class="font-semibold text-gray-800">carregando...</p>
+                    <!-- O e-mail é guardado aqui, de forma oculta -->
+                    <input type="hidden" id="email" name="email">
+                </div>
+
+                <!-- Opções de Serviço com Radio Buttons ("bolinhas") -->
+                <fieldset>
+                    <legend class="block text-sm font-medium text-gray-700 mb-2">Selecione um serviço:</legend>
+                    <div class="space-y-4">
+                        <div class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <input id="servico_trafego" name="servico" type="radio" value="trafego_pago" required class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="servico_trafego" class="ml-3 block text-sm font-medium text-gray-800">
+                                Gestão de Tráfego Pago | Impulsionamento Redes Sociais
+                            </label>
+                        </div>
+                        <div class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <input id="servico_dev" name="servico" type="radio" value="desenvolvimento" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="servico_dev" class="ml-3 block text-sm font-medium text-gray-800">
+                                Desenvolvimento de Automações e Sites
+                            </label>
+                        </div>
+                        <div class="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <input id="servico_tec" name="servico" type="radio" value="tecnologia" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="servico_tec" class="ml-3 block text-sm font-medium text-gray-800">
+                                Tecnologia e Inovação
+                            </label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="text-center mt-8">
+                    <button type="submit" id="submit-button" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md">
+                        Enviar meu Interesse
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Mensagem de Sucesso (inicialmente oculta) -->
+        <div id="success-message" class="hidden text-center">
+            <h2 class="text-2xl font-bold text-green-600 mb-4">Obrigado!</h2>
+            <p class="text-gray-700">Recebemos seu interesse. Em breve, nossa equipe entrará em contato com uma proposta direcionada para você.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // Este script é executado assim que a página carrega
+        document.addEventListener('DOMContentLoaded', () => {
+            // Pega os parâmetros da URL (ex: ?email=cliente@exemplo.com)
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+
+            const displayEmailEl = document.getElementById('display-email');
+            const hiddenEmailInput = document.getElementById('email');
+
+            if (email) {
+                // Se encontrar um e-mail na URL, exibe na tela e guarda no campo oculto
+                displayEmailEl.textContent = email;
+                hiddenEmailInput.value = email;
+            } else {
+                // Se não encontrar, exibe uma mensagem de erro
+                displayEmailEl.textContent = 'E-mail não encontrado.';
+                document.getElementById('submit-button').disabled = true;
+            }
+        });
+
+        const interestForm = document.getElementById('interest-form');
+        interestForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Impede que a página recarregue
+
+            const submitButton = document.getElementById('submit-button');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Enviando...';
+
+            // Crie um novo webhook no Make.com para este formulário
+            const webhookURL = 'COLE_AQUI_A_NOVA_URL_DO_WEBHOOK_DO_MAKE';
+
+            try {
+                const formData = {
+                    email: document.getElementById('email').value,
+                    servico_interesse: document.querySelector('input[name="servico"]:checked').value
+                };
+
+                const response = await fetch(webhookURL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    // Esconde o formulário e mostra a mensagem de sucesso
+                    document.getElementById('form-container').classList.add('hidden');
+                    document.getElementById('success-message').classList.remove('hidden');
+                } else {
+                    throw new Error('Falha no envio dos dados.');
+                }
+
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Ocorreu um erro. Por favor, tente novamente.');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Enviar meu Interesse';
+            }
+        });
+    </script>
+
+</body>
+</html>
