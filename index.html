@@ -59,7 +59,7 @@
                         </div>
                         <div class="mb-4">
                             <label for="whatsapp" class="block text-sm font-medium text-gray-700">WhatsApp</label>
-                            <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(XX) XXXXX-XXXX" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <input type="tel" id="whatsapp" name="whatsapp" required placeholder="(DD) 9 9999-9999" maxlength="15" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                         <button type="submit" id="submit-button" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-md">
                             Receber meu Cupom por E-mail!
@@ -84,7 +84,17 @@
         const couponForm = document.getElementById('coupon-form');
         const successSection = document.getElementById('success-section');
         const submitButton = document.getElementById('submit-button');
+        const whatsappInput = document.getElementById('whatsapp');
 
+        // --- Lógica da Máscara de Telefone ---
+        whatsappInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+            value = value.replace(/^(\d{2})(\d)/g, '($1) $2'); // Coloca parênteses em volta dos dois primeiros dígitos
+            value = value.replace(/(\d{5})(\d)/, '$1-$2'); // Coloca hífen depois do quinto dígito (para o nono dígito)
+            e.target.value = value;
+        });
+
+        // --- Lógica de Interação do Cartão ---
         card.addEventListener('click', () => {
             if (formSection.classList.contains('hidden') && successSection.classList.contains('hidden')) {
                 card.classList.toggle('is-flipped');
@@ -97,10 +107,11 @@
             formSection.classList.remove('hidden');
         });
         
+        // --- Lógica de Envio do Formulário (Atualizada) ---
         couponForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             submitButton.disabled = true;
-            submitButton.textContent = 'Enviando...';
+            submitButton.textContent = 'Verificando...';
 
             const webhookURL = 'https://hook.us2.make.com/394av4mde6eatpi529qagx8rfs2trpir';
 
@@ -123,11 +134,21 @@
                     body: JSON.stringify({ name, email, whatsapp, cupomCode })
                 });
 
+                // Se a resposta for OK (200), o lead foi criado com sucesso.
                 if (response.ok) {
                     console.log('Dados enviados com sucesso para o Make.com!');
                     formSection.classList.add('hidden');
                     successSection.classList.remove('hidden');
-                } else {
+                } 
+                // Se a resposta for 409 (Conflict), significa que o lead já existe.
+                else if (response.status === 409) {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Este e-mail ou telefone já foi cadastrado.');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Receber meu Cupom por E-mail!';
+                }
+                // Trata outros erros
+                else {
                     throw new Error(`O servidor respondeu com o status: ${response.status}`);
                 }
             } catch (error) {
